@@ -3,8 +3,13 @@ package com.li.rabbitmq.config;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -54,4 +59,30 @@ public class RabbitConfig {
     public Binding bindingExchangeMessage(){
         return BindingBuilder.bind(testTopicQueue()).to(testTopicExchange()).with(MAN);
     }
+
+    /**
+     * 配置消息回调
+     * @param connectionFactory
+     * @return
+     */
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory){
+        connectionFactory.isPublisherReturns();
+        RabbitTemplate rabbitTemplate = new RabbitTemplate();
+        rabbitTemplate.setConnectionFactory(connectionFactory);
+        rabbitTemplate.setMandatory(true);
+        //发送交换机成功、失败会触发此回调函数
+        rabbitTemplate.setConfirmCallback((correlationData, ack, cause) -> {
+            System.out.println("ConfirmCallback:     "+"相关数据："+correlationData);
+            System.out.println("ConfirmCallback:     "+"确认情况："+ack);
+            System.out.println("ConfirmCallback:     "+"原因："+cause);
+        });
+        //发送队列失败会触发此函数
+        rabbitTemplate.setReturnsCallback(returnedMessage -> {
+            System.out.println("==================="+returnedMessage);
+        });
+
+        return rabbitTemplate;
+    }
+
 }
